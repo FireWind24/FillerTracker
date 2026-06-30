@@ -1,92 +1,109 @@
-# Anime Filler Checker — Stremio Addon
+# 🎯 Anime Filler Checker
 
-A Stremio addon that detects filler, canon, mixed, and anime-canon episodes for anime series. Never accidentally watch a filler episode again!
+Browser extension that **auto-detects** the anime and episode you're watching and shows a **floating badge directly on the page** — FILLER ⛔, CANON ✅, MIXED ⚠️, or ANIME CANON 🔵.
+
+Works on **Chrome**, **Edge**, **Firefox**, all Chromium-based browsers, and **Stremio**.
+
+🌐 **Website:** [animefillerchecker.com](https://animefillerchecker.com)
+💖 **Sponsor:** [github.com/sponsors/nehirakbass](https://github.com/sponsors/nehirakbass)
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/promo-hero.png?v=2" width="800" alt="Anime Filler Checker - Skip the filler, watch what matters" />
+</p>
 
 ## Features
+- 🔍 **Auto-detect** — Detects anime name + episode number from the URL, page title, and DOM
+- 🏷️ **On-page badge** — Floating badge appears instantly, no popup needed
+- ⭐ **MAL Score** — Shows MyAnimeList rating, member count, and airing status via Jikan API
+- 🖱️ **Draggable** — Move the badge anywhere on the page
+- 🔎 **Manual search** — Search any anime/episode from the popup
+- 🌐 **Wide support** — Works on Crunchyroll, HiAnime, GoGoAnime, AnimePahe, AniWave, and more
+- 💾 **Smart cache** — Filler data cached for 14 days, MAL scores for 5 days
+- 🎨 **Themed badges** — Each verdict type has its own color and icon
+- 🎬 **Stremio addon** — Use it directly inside Stremio with episode badges and subtitle notifications
 
-- **Episode Badges** — Each episode in the series view shows its filler status:
-  - ✅ **CANON** — Manga faithful, safe to watch
-  - ⛔ **FILLER** — Not from the manga, safe to skip
-  - ⚠️ **MIXED** — Contains both canon and filler content
-  - 🔵 **ANIME CANON** — Anime-original but plot-relevant
-- **Filler Statistics** — See what percentage of a show is filler at a glance
-- **Subtitle Notifications** — Optional subtitle track that briefly shows the filler badge when an episode starts
-- **MAL Integration** — Pulls scores, genres, and metadata from MyAnimeList via Jikan API
-- **Smart Caching** — Filler data cached 14 days, MAL data cached 5 days
+## Install
 
-## Data Sources
+### Chrome Web Store / Edge Add-ons
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/anime-filler-checker/fnlpgfcmglenllblijbciadeldljjebj)
 
-| Source | Purpose |
-|---|---|
-| [AnimeFillerList.com](https://www.animefillerlist.com/) | Episode filler/canon classification |
-| [Jikan API](https://jikan.moe/) (MyAnimeList) | Anime metadata, scores, genres |
+### Firefox Add-ons
+[![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add--on-FF7139?logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/anime-filler-checker/)
 
-## Installation
+### Manual Install (Chrome / Edge)
+1. Download or clone this repo
+2. Go to `chrome://extensions/` → Enable **Developer mode**
+3. Click **Load unpacked** → select the repo folder
+4. Done!
 
-### Install in Stremio (Hosted)
-1. Open Stremio → **Settings → Addons**
-2. Paste: `https://anime-filler-stremio.vercel.app/manifest.json`
+### Manual Install (Firefox)
+1. Download or clone this repo
+2. Go to `about:debugging#/runtime/this-firefox`
+3. Click **Load Temporary Add-on** → select any file inside `firefox-build/`
+4. Done! *(reloads each time Firefox restarts)*
+
+### Stremio Addon
+Install directly in Stremio:
+1. Open Stremio → **Settings** → **Addons**
+2. Paste: `https://animefillerchecker.com/stremio/manifest.json`
 3. Click **Install**
 
-### Local Development
-
-```bash
-cd stremio-addon
-npm install
-npm start
-```
-
-Then add `http://localhost:7000/manifest.json` in Stremio's addon settings.
-
-### Deploy to Vercel
-
-The addon is configured for Vercel serverless deployment:
-
-1. Push to GitHub
-2. Import the `stremio-addon/` folder as a new Vercel project
-3. Set **Root Directory** to `stremio-addon`
-4. Deploy — no build command or environment variables needed
-
-The manifest URL will be: `https://your-project.vercel.app/manifest.json`
-
-### Deploy to Railway / Render
-
-Works as a standard Node.js server:
-
-```bash
-PORT=7000 npm start
-```
+See [stremio-addon/](stremio-addon/) for source code and self-hosting instructions.
 
 ## How It Works
 
-1. When you open an anime series in Stremio, the addon receives the series ID (Kitsu or MAL)
-2. It resolves the anime name via Kitsu/Jikan API
-3. Looks up filler data on AnimeFillerList.com (direct slug match → fuzzy search fallback)
-4. Returns enhanced episode metadata with filler badges in titles and descriptions
-5. When playing an episode, provides an optional subtitle track showing the filler status
+### Browser Extension
+1. **URL Analysis** — Parses the current page URL for anime name and episode patterns
+2. **Page Title Scan** — Reads the `<title>` tag to confirm or extract episode info
+3. **DOM Deep Search** — Searches page elements for episode titles and numbers
+4. **AnimeFillerList Lookup** — Fetches filler/canon data from AnimeFillerList.com
+5. **Verdict** — Renders a floating badge with the result + optional auto-skip to next canon episode
 
-## Configuration
+### Stremio Addon (3-Tier Lookup)
+1. **Bundle Lookup** — Checks `completedAnime.json` (pre-built data for 360+ finished anime). Instant, zero API calls.
+2. **Whitelist Check** — Checks `showList.json` (371 AFL anime). Non-anime titles (Chuck, Loki, etc.) are rejected immediately.
+3. **Live Scrape** — Only for ongoing anime in the whitelist, fetches fresh data from AnimeFillerList.com.
 
-| Environment Variable | Default | Description |
-|---|---|---|
-| `PORT` | `7000` | Server port |
+Bundles are regenerated weekly via GitHub Actions.
+
+MAL score, member count, and airing status are shown alongside the result.
 
 ## Project Structure
+```
+├── manifest.json          # Chrome/Edge extension manifest (MV3)
+├── background.js          # Service worker
+├── content.js             # Content script (auto-detect + badge injection)
+├── badge.css              # Badge styles
+├── popup.html/js          # Extension popup UI
+├── icons/                 # Extension & favicon icons
+├── firefox-build/         # Firefox-specific build (MV3 + gecko config)
+├── stremio-addon/         # Standalone Stremio addon (Node.js)
+│   ├── api/               # Vercel serverless function
+│   └── lib/               # Shared addon logic
+└── website/               # Landing page + Stremio addon (Next.js, Vercel)
+    ├── api/stremio/lib/   # Addon logic + JSON bundles
+    ├── app/               # Next.js App Router pages
+    ├── scripts/           # Bundle scraper (scrape-all-shows.js)
+    └── public/            # Static assets
+```
 
-```
-stremio-addon/
-├── index.js              # Local dev server (node index.js)
-├── vercel.json           # Vercel routing config
-├── package.json
-├── README.md
-├── api/
-│   └── [...path].js      # Vercel serverless catch-all
-└── lib/
-    ├── addon.js          # Shared addon builder (manifest + handlers)
-    ├── fillerData.js     # AnimeFillerList scraper + Jikan API + caching
-    └── subtitles.js      # SRT subtitle generation
-```
+## Data Sources
+- **Filler data** — [AnimeFillerList.com](https://www.animefillerlist.com)
+- **Anime scores & info** — [MyAnimeList](https://myanimelist.net) via [Jikan API](https://jikan.moe)
+
+## Privacy
+No personal data is collected, stored, or transmitted. All caching is local (`chrome.storage.local`). See the full [Privacy Policy](https://animefillerchecker.com/privacy).
+
+## Contributing
+Contributions are welcome! Feel free to open an issue or submit a PR.
 
 ## License
+This project is open source.
 
-MIT
+---
+
+<p align="center">
+  Built by <a href="https://nehirakbas.com">Nehir Akbaş</a>
+</p>

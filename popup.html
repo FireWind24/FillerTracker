@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Anime Filler Checker</title>
+  <!-- System fonts only — no external requests (CSP safe) -->
+  <style>
+    :root {
+      --bg:        #0b0d12;
+      --surface:   rgba(22, 25, 35, 0.8);
+      --surface2:  rgba(30, 34, 48, 0.9);
+      --glass:     rgba(255, 255, 255, 0.04);
+      --border:    rgba(255, 255, 255, 0.06);
+      --border-h:  rgba(255, 255, 255, 0.12);
+      --text:      #eaedf3;
+      --text2:     #6b7190;
+      --accent:    #8b6cff;
+      --accent-g:  linear-gradient(135deg, #8b6cff, #c471ed, #ff6b9d);
+      --canon:     #00e09e;
+      --filler:    #ff4d6a;
+      --mixed:     #ffb347;
+      --anime:     #5ba8ff;
+      --radius:    14px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 370px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ─── Ambient glow ────────────────── */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 180px; height: 180px;
+      background: radial-gradient(circle, rgba(139,108,255,0.25) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      top: 30px; left: -30px;
+      width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(255,107,157,0.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Header ──────────────────────── */
+    .header {
+      position: relative;
+      z-index: 1;
+      padding: 20px 22px 16px;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: var(--accent-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header .tagline {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* ─── Toggle switch ──────────────── */
+    .toggle-row {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 14px 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .toggle-label span {
+      font-size: 10px;
+      font-weight: 500;
+      display: block;
+      margin-top: 2px;
+      opacity: 0.6;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background: #6b7190;
+      border-radius: 50%;
+      transition: transform 0.3s, background 0.3s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: rgba(139,108,255,0.2);
+      border-color: rgba(139,108,255,0.4);
+    }
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+      background: #8b6cff;
+    }
+
+    /* ─── Cards ───────────────────────── */
+    .card {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      backdrop-filter: blur(12px);
+    }
+    .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text2);
+      margin-bottom: 10px;
+    }
+
+    /* ─── Detect row ──────────────────── */
+    .detect-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .anime-name {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ep-pill {
+      font-family: 'Cascadia Code', 'Consolas', 'SF Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--accent-g);
+      color: #fff;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(139,108,255,0.3);
+    }
+
+    /* ─── Manual override ─────────────── */
+    .manual-toggle {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+    }
+    .manual-toggle summary {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      outline: none;
+      padding: 4px 0;
+      list-style: none;
+    }
+    .manual-toggle summary::-webkit-details-marker { display: none; }
+    .manual-toggle summary::before {
+      content: '▸';
+      display: inline-block;
+      margin-right: 6px;
+      transition: transform 0.2s;
+    }
+    .manual-toggle[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .manual-inputs {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .manual-inputs input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .manual-inputs input:focus {
+      border-color: rgba(139,108,255,0.5);
+      box-shadow: 0 0 0 3px rgba(139,108,255,0.1);
+    }
+    .manual-inputs input::placeholder { color: var(--text2); }
+    .manual-inputs input.ep-input { max-width: 70px; text-align: center; }
+
+    /* ─── Button ──────────────────────── */
+    .btn-wrap {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent-g);
+      background-size: 200% 200%;
+      box-shadow: 0 4px 20px rgba(139,108,255,0.35);
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(139,108,255,0.45);
+      filter: brightness(1.05);
+    }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+      filter: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ─── Results ─────────────────────── */
+    #results {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 14px;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes pop-in {
+      from { opacity: 0; transform: scale(0.96) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .result-top {
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .result-icon-box {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .result-icon-box.canon      { background: rgba(0,224,158,0.12); }
+    .result-icon-box.filler     { background: rgba(255,77,106,0.12); }
+    .result-icon-box.mixed      { background: rgba(255,179,71,0.12); }
+    .result-icon-box.anime_canon{ background: rgba(91,168,255,0.12); }
+    .result-icon-box.unknown    { background: rgba(107,113,144,0.12); }
+
+    .result-info { flex: 1; min-width: 0; }
+    .result-show {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .result-ep {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-verdict {
+      padding: 0 16px 16px;
+    }
+
+    /* ─── MAL Score Row ───────────────── */
+    .mal-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px 14px;
+      margin: 0 16px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mal-score-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 193, 7, 0.1);
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+    .mal-star {
+      color: #ffc107;
+      font-size: 14px;
+    }
+    .mal-score {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffc107;
+    }
+    .mal-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .mal-members {
+      font-size: 11px;
+      color: var(--text2);
+    }
+    .mal-info {
+      font-size: 10px;
+      color: var(--text2);
+      opacity: 0.7;
+    }
+    .mal-link {
+      font-size: 10px;
+      font-weight: 600;
+      color: #2e51a2;
+      background: rgba(46, 81, 162, 0.1);
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .mal-link:hover {
+      background: rgba(46, 81, 162, 0.2);
+    }
+
+    .verdict-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .verdict-pill.canon      { background: rgba(0,224,158,0.12); color: var(--canon); }
+    .verdict-pill.filler     { background: rgba(255,77,106,0.12); color: var(--filler); }
+    .verdict-pill.mixed      { background: rgba(255,179,71,0.12); color: var(--mixed); }
+    .verdict-pill.anime_canon{ background: rgba(91,168,255,0.12); color: var(--anime); }
+    .verdict-pill.unknown    { background: rgba(107,113,144,0.12); color: var(--text2); }
+
+    .verdict-desc {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .next-canon-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: rgba(0,224,158,0.08);
+      font-size: 11px;
+      color: var(--canon);
+      font-weight: 600;
+    }
+    .next-canon-hint .nch-label {
+      opacity: 0.7;
+      font-weight: 400;
+    }
+
+    .result-link {
+      display: block;
+      text-align: center;
+      padding: 11px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .result-link:hover { background: var(--glass); }
+
+    /* ─── State messages ──────────────── */
+    .state-msg {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+    .state-msg .emoji {
+      font-size: 32px;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .state-msg.error { color: var(--filler); }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(139,108,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Report Bug ─────────────────── */
+    .bug-toggle {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+    }
+    .bug-toggle summary {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--filler);
+      cursor: pointer;
+      outline: none;
+      padding: 4px 0;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .bug-toggle summary::-webkit-details-marker { display: none; }
+    .bug-toggle summary::before {
+      content: '▸';
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .bug-toggle[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .bug-form {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .bug-form textarea,
+    .bug-form input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 12px;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .bug-form textarea {
+      min-height: 60px;
+      max-height: 120px;
+    }
+    .bug-form textarea:focus,
+    .bug-form input:focus {
+      border-color: rgba(255,77,106,0.5);
+      box-shadow: 0 0 0 3px rgba(255,77,106,0.1);
+    }
+    .bug-form textarea::placeholder,
+    .bug-form input::placeholder { color: var(--text2); }
+    .bug-submit {
+      padding: 9px;
+      border: none;
+      border-radius: 10px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: var(--filler);
+      transition: filter 0.15s, transform 0.15s;
+    }
+    .bug-submit:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .bug-submit:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; filter: none !important; }
+    .bug-msg {
+      font-size: 11px;
+      text-align: center;
+      padding: 4px 0;
+    }
+    .bug-msg.success { color: var(--canon); }
+    .bug-msg.error { color: var(--filler); }
+
+    /* ─── Footer ──────────────────────── */
+    .footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 4px 14px 14px;
+      font-size: 10px;
+      color: var(--text2);
+      opacity: 0.5;
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .footer-sep {
+      margin: 0 4px;
+      opacity: 0.4;
+    }
+    .footer-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .footer-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 10px;
+      transition: color 0.2s, opacity 0.2s;
+      opacity: 0.7;
+    }
+    .footer-action:hover { opacity: 1; color: var(--accent); }
+    .footer-action .fa-icon { font-size: 11px; }
+    .report-site-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+    }
+    .report-site-btn:hover { opacity: 1; color: var(--filler) !important; }
+
+    /* ─── Auto-skip select ────────────── */
+    .skip-row {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 14px 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .skip-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .skip-label span {
+      font-size: 10px;
+      font-weight: 500;
+      display: block;
+      margin-top: 2px;
+      opacity: 0.6;
+    }
+    .skip-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 8px;
+      color: var(--text);
+      font-size: 11px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .skip-select:focus {
+      border-color: rgba(139,108,255,0.5);
+    }
+    .skip-select option {
+      background: #1a1c28;
+      color: var(--text);
+    }
+
+    /* ─── Watch history ──────────────── */
+    .history-section {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+    }
+    .history-section .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .history-list:empty::after {
+      content: 'No episodes checked yet';
+      font-size: 11px;
+      color: var(--text2);
+      opacity: 0.5;
+      text-align: center;
+      padding: 8px 0;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .history-type {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .history-type.canon      { background: rgba(0,224,158,0.12); }
+    .history-type.filler     { background: rgba(255,77,106,0.12); }
+    .history-type.mixed      { background: rgba(255,179,71,0.12); }
+    .history-type.anime_canon{ background: rgba(91,168,255,0.12); }
+    .history-type.unknown    { background: rgba(107,113,144,0.12); }
+    .history-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .history-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-ep {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+    .history-time {
+      font-size: 9px;
+      color: var(--text2);
+      opacity: 0.5;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .history-clear {
+      display: block;
+      margin-top: 6px;
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.2s, color 0.2s;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      text-align: right;
+      width: 100%;
+    }
+    .history-clear:hover { opacity: 1; color: var(--filler); }
+
+    /* ─── Update banner ────────────────── */
+    .update-banner {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, rgba(139,108,255,0.12), rgba(255,107,157,0.12));
+      border: 1px solid rgba(139,108,255,0.25);
+      border-radius: var(--radius);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      animation: pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .update-banner.show { display: flex; }
+    .update-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .update-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .update-info .update-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .update-info .update-sub {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+    .dismiss-btn {
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .dismiss-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+
+    /* ─── What's New section (settings) ── */
+    .whats-new-section {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: none;
+    }
+    .whats-new-section.show { display: block; }
+    .whats-new-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .whats-new-header .wn-icon { font-size: 16px; }
+    .whats-new-header .wn-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .whats-new-header .wn-version {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(139,108,255,0.12);
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: auto;
+    }
+    .whats-new-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .whats-new-list li {
+      font-size: 11px;
+      color: var(--text2);
+      padding: 3px 0;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .whats-new-list li::before {
+      content: "✦";
+      color: var(--accent);
+      font-size: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Quick add site row ──────────── */
+    .quick-site-row {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+    }
+    .quick-site-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 9px 14px;
+      border: 1px dashed rgba(139,108,255,0.3);
+      border-radius: var(--radius);
+      background: rgba(139,108,255,0.06);
+      color: var(--accent);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .quick-site-btn:hover {
+      background: rgba(139,108,255,0.12);
+      border-color: rgba(139,108,255,0.5);
+    }
+    .quick-site-btn.is-added {
+      border-style: solid;
+      border-color: rgba(0,224,158,0.3);
+      background: rgba(0,224,158,0.06);
+      color: var(--canon);
+      cursor: default;
+    }
+    .quick-site-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Gear button ─────────────────── */
+    .gear-btn {
+      background: none;
+      border: none;
+      color: var(--text2);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .gear-btn:hover {
+      color: var(--accent);
+      background: var(--glass);
+    }
+    .gear-btn svg { width: 20px; height: 20px; }
+
+    /* ─── View switching ──────────────── */
+    .view-hidden { display: none !important; }
+
+    /* ─── Settings panel ──────────────── */
+    .settings-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 22px 16px;
+    }
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .back-btn:hover { background: var(--glass); }
+    .settings-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      background: var(--accent-g);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ─── Streaming sites ─────────────── */
+    .sites-section {
+      position: relative;
+      z-index: 1;
+      margin: 0 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .sites-header { margin-bottom: 12px; }
+    .sites-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .sites-list:empty { display: none; }
+    .site-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px 4px 10px;
+      background: rgba(139,108,255,0.1);
+      border: 1px solid rgba(139,108,255,0.2);
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .site-chip .site-remove {
+      background: none;
+      border: none;
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0 2px;
+      line-height: 1;
+      border-radius: 50%;
+      transition: color 0.2s;
+    }
+    .site-chip .site-remove:hover { color: var(--filler); }
+    .site-add-row {
+      display: flex;
+      gap: 6px;
+    }
+    .site-add-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .site-add-row input:focus { border-color: rgba(139,108,255,0.5); }
+    .site-add-row input::placeholder { color: var(--text2); }
+    .site-add-btn {
+      background: rgba(139,108,255,0.15);
+      border: 1px solid rgba(139,108,255,0.3);
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .site-add-btn:hover { background: rgba(139,108,255,0.25); }
+    .sites-reset {
+      display: block;
+      margin-top: 8px;
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s, color 0.2s;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    .sites-reset:hover { opacity: 1; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <!-- Main View -->
+  <div id="mainView">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-row">
+      <div class="logo"><img src="icons/icon48.png" width="28" height="28" style="border-radius:6px" /></div>
+      <div style="flex:1">
+        <h1>Anime Filler Checker</h1>
+        <div class="tagline">Skip the filler, watch what matters</div>
+      </div>
+      <button class="gear-btn" id="settingsBtn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toggle -->
+  <div class="toggle-row">
+    <div class="toggle-label">
+      Auto-detect
+      <span>Auto-check on your streaming sites</span>
+    </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleEnabled" checked />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <!-- Update banner -->
+  <div class="update-banner" id="updateBanner">
+    <div class="update-icon">🚀</div>
+    <div class="update-info">
+      <div class="update-title" id="updateTitle">New version available!</div>
+      <div class="update-sub">See what's new in Settings → What's New</div>
+    </div>
+    <button class="dismiss-btn" id="dismissBanner" title="Dismiss">✕</button>
+  </div>
+
+  <!-- Quick add site -->
+  <div class="quick-site-row" id="quickSiteRow" style="display:none">
+    <button class="quick-site-btn" id="quickSiteBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+      <span id="quickSiteText">Add this site to whitelist</span>
+    </button>
+  </div>
+
+  <!-- Detected info -->
+  <div class="card">
+    <div class="card-label">Detected from page</div>
+    <div class="detect-row">
+      <span class="anime-name" id="detectedName">Scanning…</span>
+      <span class="ep-pill" id="detectedEp">—</span>
+    </div>
+  </div>
+
+  <!-- Manual override -->
+  <details class="manual-toggle">
+    <summary>Manual override</summary>
+    <div class="manual-inputs">
+      <input type="text" id="manualName" placeholder="Anime name" spellcheck="false" />
+      <input type="number" id="manualEp" class="ep-input" placeholder="Ep" min="1" />
+    </div>
+  </details>
+
+  <!-- Check button -->
+  <div class="btn-wrap">
+    <button class="btn" id="checkBtn" disabled>Check Episode</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+  <!-- Watch History -->
+  <div class="history-section" id="historySection">
+    <div class="card-label">Watch History</div>
+    <div class="history-list" id="historyList"></div>
+    <button class="history-clear" id="clearHistory">Clear history</button>
+  </div>
+
+  <!-- Report a Bug -->
+  <details class="bug-toggle">
+    <summary>💬 Feedback / Bug Report</summary>
+    <form class="bug-form" id="bugForm">
+      <textarea id="bugMessage" placeholder="Bug, suggestion, or just a quick thought — we'd love to hear it!" required></textarea>
+      <input type="email" id="bugEmail" placeholder="Your email (optional — for follow-up)" />
+      <button type="submit" class="bug-submit" id="bugSubmit">Send Report</button>
+      <div class="bug-msg" id="bugMsg"></div>
+    </form>
+  </details>
+
+  <!-- Footer -->
+  <div class="footer">
+    Data from <a href="https://www.animefillerlist.com" target="_blank">AnimeFillerList.com</a>
+    <span class="footer-sep">·</span>
+    <a href="https://github.com/nehirakbass/anime-filler-checker" target="_blank">GitHub</a>
+    <span class="footer-sep">·</span>
+    <span id="footerVersion">v2.3.0</span>
+    <div class="footer-actions">
+      <a class="footer-action" href="https://github.com/sponsors/nehirakbass" target="_blank" title="Support this project">
+        <span class="fa-icon">❤️</span> Support
+      </a>
+      <a class="footer-action" href="https://chromewebstore.google.com/detail/anime-filler-checker/fnlpgfcmglenllblijbciadeldljjebj/reviews" target="_blank" title="Rate us on the Chrome Web Store">
+        <span class="fa-icon">⭐</span> Rate Us
+      </a>
+      <button class="footer-action report-site-btn" id="reportSiteBtn" title="Doesn't work on this site? Report it!">
+        <span class="fa-icon">🚩</span> <span id="reportSiteText">Report Site</span>
+      </button>
+    </div>
+  </div>
+
+  </div><!-- /mainView -->
+
+  <!-- Settings View -->
+  <div id="settingsView" class="view-hidden">
+    <div class="settings-header">
+      <button class="back-btn" id="settingsBack" title="Back">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      </button>
+      <h2>Settings</h2>
+    </div>
+
+    <!-- Auto-skip -->
+    <div class="skip-row">
+      <div class="skip-label">
+        Auto-skip
+        <span>Skip to next canon episode</span>
+      </div>
+      <select id="autoSkip" class="skip-select">
+        <option value="off">Off</option>
+        <option value="filler">Filler only</option>
+        <option value="filler_mixed">Filler + Mixed</option>
+      </select>
+    </div>
+
+    <!-- Badge position -->
+    <div class="skip-row">
+      <div class="skip-label">
+        Badge position
+        <span>Where badge appears on page</span>
+      </div>
+      <select id="badgePosition" class="skip-select">
+        <option value="top-right">Top Right</option>
+        <option value="top-left">Top Left</option>
+        <option value="bottom-right">Bottom Right</option>
+        <option value="bottom-left">Bottom Left</option>
+      </select>
+    </div>
+
+    <!-- Badge content -->
+    <div class="skip-row">
+      <div class="skip-label">
+        Badge content
+        <span>What info the badge shows</span>
+      </div>
+      <select id="badgeContent" class="skip-select">
+        <option value="status">Status only</option>
+        <option value="status_title">Status + Title</option>
+      </select>
+    </div>
+
+    <!-- Badge auto-disappear -->
+    <div class="skip-row">
+      <div class="skip-label">
+        Auto-hide badge
+        <span>Badge disappears after</span>
+      </div>
+      <select id="badgeAutohide" class="skip-select">
+        <option value="0">Never</option>
+        <option value="3" selected>3 seconds</option>
+        <option value="5">5 seconds</option>
+        <option value="10">10 seconds</option>
+        <option value="15">15 seconds</option>
+      </select>
+    </div>
+
+    <!-- Streaming Sites -->
+    <!-- What's New (changelog) -->
+    <div class="whats-new-section" id="whatsNewSection">
+      <div class="whats-new-header">
+        <span class="wn-icon">🚀</span>
+        <span class="wn-title">What's New</span>
+        <span class="wn-version" id="wnVersion"></span>
+      </div>
+      <ul class="whats-new-list" id="whatsNewList"></ul>
+    </div>
+
+    <div class="sites-section">
+      <div class="sites-header">
+        <div class="skip-label">
+          Streaming Sites
+          <span>Auto-detect only runs on these sites</span>
+        </div>
+      </div>
+      <div class="sites-list" id="sitesList"></div>
+      <div class="site-add-row">
+        <input type="text" id="siteInput" placeholder="e.g. crunchyroll.com" spellcheck="false" />
+        <button class="site-add-btn" id="addSiteBtn">Add</button>
+      </div>
+      <button class="sites-reset" id="resetSites">↺ Reset to defaults</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
