@@ -30,7 +30,10 @@ module.exports = (req, res) => {
     return;
   }
 
-  const reqPath = req.url || "";
+  // Normalize URL: strip /api prefix if Vercel rewrite added it
+  let reqPath = req.url || "";
+  if (reqPath.startsWith("/api/")) reqPath = reqPath.slice(4);
+  else if (reqPath === "/api" || reqPath === "/api/") reqPath = "/";
 
   // Maintenance mode: intercept early, serve cached static response
   if (builder.MAINTENANCE_MODE && /\/(stream|subtitles)\//.test(reqPath)) {
